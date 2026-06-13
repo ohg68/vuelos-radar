@@ -1,0 +1,86 @@
+"""Fuente: Google Flights vía la librería `fli` (paquete PyPI: flights).
+
+Usa el endpoint de calendario (GetCalendarGraph) que devuelve el precio
+más barato por fecha de salida en una ventana — una sola petición cubre
+~60 días, así que el volumen de requests es muy bajo.
+
+Nota: Google bloquea algunas IPs de datacenter. Si devuelve None de forma
+persistente, el worker lo registra y sigue con Travelpayouts.
+"""
+
+import logging
+from datetime import date, timedelta
+
+from fli.models import (
+    Airport, DateSearchFilters, FlightSegment, PassengerInfo, SeatType, TripType,
+)
+from fli.search import SearchDates
+
+log = logging.getLogger("google_flights")
+
+
+def fetch_calendar(
+    origin: str,
+    destination: str,
+    trip_type: str = "round_trip",
+    stay_days: int = 14,
+    window_days: int = 150,
+    currency: str = "USD",
+) -> list[dict]:
+    """Devuelve [{travel_date, return_date, price}] para una ruta."""
+    today = date.today()
+    from_date = today + timedelta(days=3)
+    to_date = today + timedelta(days=min(window_days, 300))
+
+    tt = TripType.ROUND_TRIP if trip_type == "round_trip" else TripType.ONE_WAY
+
+    segments = [
+        FlightSegment(
+            departure_airport=[[Airport[origin], 0]],
+            arrival_airport=[[Airport[destination], 0]],
+            travel_date=(from_date + timedelta(days=7)).isoformat(),
+        )
+    ]
+    if tt == TripType.ROUND_TRIP:
+        segments.append(
+            FlightSegment(
+                departure_airport=[[Airport[destination], 0]],
+                arrival_airport=[[Airport[origin], 0]],
+                travel_date=(from_date + timedelta(days=7 + stay_days)).isoformat(),
+            )
+        )
+
+    filters = DateSearchFilters(
+        trip_type=tt,
+        passenger_info=PassengerInfo(adults=1),
+        flight_segments=segments,
+        seat_type=SeatType.ECONOMY,
+        from_date=from_date.isoformat(),
+        to_date=to_date.isoformat(),
+        duration=stay_days if tt == TripType.ROUND_TRIP else None,
+    )
+
+    try:
+        results = SearchDates().search(filters, currency=currency)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("fli falló %s→%s: %s", origin, destination, exc)
+        return []
+
+    if not results:
+        log.warning("fli devolvió vacío %s→%s (¿IP bloqueada por Google?)", origin, destination)
+        return []
+
+    out = []
+    for r in results:
+        if r.price and r.price > 0:
+            d = r.date[0] if isinstance(r.date, (list, tuple)) else r.date
+            d = d.isoformat() if hasattr(d, "isoformat") else str(d)
+            ret = None
+            if tt == TripType.ROUND_TRIP:
+                ret = (date.fromisoformat(d[:10]) + timedelta(days=stay_days)).isoformat()
+            out.append({
+                "travel_date": d[:10],
+                "return_date": ret,
+                "price": float(r.price),
+            })
+    return out

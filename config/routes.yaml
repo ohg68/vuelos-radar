@@ -1,0 +1,59 @@
+# ── Configuración de rutas a monitorear ─────────────────────────────
+# Moneda de referencia: USD (para comparar entre orígenes)
+
+defaults:
+  currency: USD
+  trip_type: round_trip        # round_trip | one_way
+  stay_days: 14                # duración del viaje para ida y vuelta
+  search_window_days: 150      # cuántos días hacia adelante escanear
+  pct_below_median: 0.25       # alerta si precio <= mediana * (1 - 0.25)
+  history_days: 90             # ventana para calcular la mediana
+
+origins:
+  - code: EZE
+    city: Buenos Aires
+    max_price_usd: 800         # tope absoluto: por debajo de esto siempre alerta
+  - code: ASU
+    city: Asunción
+    max_price_usd: 900
+  - code: GRU
+    city: São Paulo
+    max_price_usd: 750
+  - code: SCL
+    city: Santiago de Chile
+    max_price_usd: 850
+
+destinations:
+  - code: MAD
+    city: Madrid
+  - code: BCN
+    city: Barcelona
+  - code: CDG
+    city: París
+  - code: FCO
+    city: Roma
+  - code: LIS
+    city: Lisboa
+  - code: ATH
+    city: Atenas
+  - code: SKG
+    city: Tesalónica
+
+# ── Cuentas de X que publican ofertas de vuelos (opcional, requiere API) ──
+x_accounts:
+  - turismocity          # Argentina
+  - PromocionesAereas    # Argentina
+  - VolemosBarato        # Argentina/LATAM
+  - Melhores_Destinos    # Brasil (GRU)
+  - chollovuelos         # España (útil para tramos europeos)
+
+# ── Canales públicos de Telegram (GRATIS, sin API: se lee t.me/s/<canal>) ──
+# Mismo contenido que las cuentas de X, sin coste. Añade los tuyos aquí.
+telegram_channels:
+  - turismocityar              # Turismocity Argentina (EZE)
+  - Ratamundo                  # Ratamundo Argentina (EZE) — millas Smiles y promos
+  - guialowcost                # Guía Low Cost España (~39K subs, tramos EU)
+  - melhoresdestinos           # Melhores Destinos Brasil (GRU) — el mayor de BR
+  - promopassagens             # PromoPassagens Brasil (GRU)
+  - VuelosBaratosViajerosPiratas  # Viajeros Piratas España (tramos EU)
+  - holidaygurues              # Holidayguru España
