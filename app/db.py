@@ -71,13 +71,37 @@ class SeenTweet(Base):
     __tablename__ = "seen_tweets"
 
     id = Column(Integer, primary_key=True)
-    tweet_id = Column(String(32), unique=True, index=True)
-    account = Column(String(40))
+    tweet_id = Column(String(120), unique=True, index=True)
+    account = Column(String(60))
     processed_at = Column(DateTime(timezone=True), default=utcnow)
 
 
 def init_db():
     Base.metadata.create_all(engine)
+    _run_migrations()
+
+
+def _run_migrations():
+    """Ajustes idempotentes sobre tablas ya existentes (create_all no altera columnas).
+
+    Amplía campos que en versiones previas eran demasiado cortos. Seguro de
+    ejecutar en cada arranque: si la columna ya tiene el tamaño correcto, no hace nada.
+    """
+    from sqlalchemy import text
+
+    stmts = [
+        "ALTER TABLE seen_tweets ALTER COLUMN tweet_id TYPE VARCHAR(120)",
+        "ALTER TABLE seen_tweets ALTER COLUMN account TYPE VARCHAR(60)",
+    ]
+    # Solo aplica en PostgreSQL; SQLite no necesita (y no soporta) estos ALTER.
+    if not DATABASE_URL.startswith("postgresql"):
+        return
+    with engine.begin() as conn:
+        for s in stmts:
+            try:
+                conn.execute(text(s))
+            except Exception:
+                pass  # columna ya correcta o tabla aún no creada
 
 
 def median_price(session, origin: str, destination: str, history_days: int = 90):
