@@ -54,6 +54,7 @@ class Deal(Base):
     origin = Column(String(3), index=True)
     destination = Column(String(3), index=True)
     travel_date = Column(String(10))
+    return_date = Column(String(10), nullable=True)
     price = Column(Float)
     currency = Column(String(3), default="USD")
     median_ref = Column(Float, nullable=True)   # mediana vigente al detectar
@@ -92,6 +93,7 @@ def _run_migrations():
     stmts = [
         "ALTER TABLE seen_tweets ALTER COLUMN tweet_id TYPE VARCHAR(120)",
         "ALTER TABLE seen_tweets ALTER COLUMN account TYPE VARCHAR(60)",
+        "ALTER TABLE deals ADD COLUMN IF NOT EXISTS return_date VARCHAR(10)",
     ]
     # Solo aplica en PostgreSQL; SQLite no necesita (y no soporta) estos ALTER.
     if not DATABASE_URL.startswith("postgresql"):

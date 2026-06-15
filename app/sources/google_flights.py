@@ -10,6 +10,7 @@ persistente, el worker lo registra y sigue con Travelpayouts.
 
 import logging
 from datetime import date, timedelta
+from urllib.parse import quote
 
 from fli.models import (
     Airport, DateSearchFilters, FlightSegment, PassengerInfo, SeatType, TripType,
@@ -17,6 +18,21 @@ from fli.models import (
 from fli.search import SearchDates
 
 log = logging.getLogger("google_flights")
+
+
+def build_url(origin: str, destination: str, travel_date: str,
+              return_date: str | None = None) -> str:
+    """Construye un enlace de búsqueda de Google Flights que abre el resultado.
+
+    Usa la sintaxis de URL de texto de Google Flights, que prefiltra origen,
+    destino y fechas. Funciona tanto para ida y vuelta como para solo ida.
+    """
+    if return_date:
+        q = (f"Flights from {origin} to {destination} "
+             f"on {travel_date} returning {return_date}")
+    else:
+        q = f"Flights from {origin} to {destination} on {travel_date}"
+    return f"https://www.google.com/travel/flights?q={quote(q)}"
 
 
 def fetch_calendar(
@@ -27,7 +43,7 @@ def fetch_calendar(
     window_days: int = 150,
     currency: str = "USD",
 ) -> list[dict]:
-    """Devuelve [{travel_date, return_date, price}] para una ruta."""
+    """Devuelve [{travel_date, return_date, price, url}] para una ruta."""
     today = date.today()
     from_date = today + timedelta(days=3)
     to_date = today + timedelta(days=min(window_days, 300))
@@ -75,12 +91,16 @@ def fetch_calendar(
         if r.price and r.price > 0:
             d = r.date[0] if isinstance(r.date, (list, tuple)) else r.date
             d = d.isoformat() if hasattr(d, "isoformat") else str(d)
+            travel_date = d[:10]
+            # En round_trip la consulta usa duration=stay_days, así que la
+            # fecha de regreso es salida + stay_days (coincide con el precio real).
             ret = None
             if tt == TripType.ROUND_TRIP:
-                ret = (date.fromisoformat(d[:10]) + timedelta(days=stay_days)).isoformat()
+                ret = (date.fromisoformat(travel_date) + timedelta(days=stay_days)).isoformat()
             out.append({
-                "travel_date": d[:10],
+                "travel_date": travel_date,
                 "return_date": ret,
                 "price": float(r.price),
+                "url": build_url(origin, destination, travel_date, ret),
             })
     return out

@@ -40,12 +40,21 @@ def send_deal(deal) -> bool:
         + (f" (mediana: {deal.median_ref:.0f})" if deal.median_ref else ""),
     ]
     if deal.travel_date:
-        lines.append(f"📅 Salida: {deal.travel_date}")
+        if deal.return_date:
+            lines.append(f"📅 Ida {deal.travel_date} · Vuelta {deal.return_date}")
+        else:
+            lines.append(f"📅 Salida: {deal.travel_date}")
     lines.append(f"🔎 Fuente: {deal.source} · {REASON_TXT.get(deal.reason, deal.reason)}")
     if deal.detail:
         lines.append(f"📝 {deal.detail[:300]}")
-    if deal.url:
-        lines.append(f'<a href="{deal.url}">Ver oferta</a>')
+
+    # Enlace garantizado: si la fuente no trajo URL, generamos una de Google Flights.
+    url = deal.url
+    if not url and deal.travel_date:
+        from app.sources.google_flights import build_url
+        url = build_url(deal.origin, deal.destination, deal.travel_date, deal.return_date)
+    if url:
+        lines.append(f'<a href="{url}">Ver oferta</a>')
 
     try:
         r = httpx.post(

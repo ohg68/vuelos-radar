@@ -46,6 +46,7 @@ def evaluate(session, point: dict, cfg: dict) -> Deal | None:
         origin=origin,
         destination=dest,
         travel_date=point.get("travel_date"),
+        return_date=point.get("return_date"),
         price=price,
         currency=point.get("currency", "USD"),
         median_ref=median,

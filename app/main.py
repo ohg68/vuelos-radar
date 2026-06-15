@@ -63,6 +63,15 @@ def dashboard():
     finally:
         session.close()
 
+    from app.sources.google_flights import build_url
+
+    def deal_url(x):
+        if x.url:
+            return x.url
+        if x.travel_date:
+            return build_url(x.origin, x.destination, x.travel_date, x.return_date)
+        return ""
+
     return HTML_TEMPLATE.replace(
         "__ROUTES__", json.dumps(routes)
     ).replace(
@@ -71,8 +80,9 @@ def dashboard():
             "price": x.price, "currency": x.currency,
             "median": x.median_ref, "source": x.source,
             "date": x.travel_date or "",
+            "return_date": x.return_date or "",
             "when": x.created_at.strftime("%d/%m %H:%M") if x.created_at else "",
-            "url": x.url or "",
+            "url": deal_url(x),
         } for x in deals])
     )
 
@@ -106,7 +116,7 @@ a{color:var(--amber)}
 <p class="sub">Monitoreo EZE / ASU / GRU / SCL → Europa · Google Flights + Travelpayouts + X</p>
 
 <h2>Ofertas detectadas</h2>
-<table><thead><tr><th>Ruta</th><th>Precio</th><th>Mediana</th><th>Salida</th><th>Fuente</th><th>Detectada</th></tr></thead>
+<table><thead><tr><th>Ruta</th><th>Precio</th><th>Mediana</th><th>Ida</th><th>Vuelta</th><th>Fuente</th><th>Detectada</th></tr></thead>
 <tbody id="deals"></tbody></table>
 
 <h2>Estado por ruta</h2>
@@ -117,10 +127,10 @@ a{color:var(--amber)}
 const routes=__ROUTES__, deals=__DEALS__;
 const fmt=n=>n?Math.round(n).toLocaleString('es'):'—';
 document.getElementById('deals').innerHTML = deals.length ? deals.map(d=>`
-<tr><td>${d.url?`<a href="${d.url}">${d.route}</a>`:d.route}</td>
+<tr><td>${d.url?`<a href="${d.url}">${d.route} ↗</a>`:d.route}</td>
 <td class="price">${fmt(d.price)} ${d.currency}</td><td>${fmt(d.median)}</td>
-<td>${d.date}</td><td><span class="badge">${d.source}</span></td><td>${d.when}</td></tr>`).join('')
-: '<tr><td colspan="6" style="color:var(--dim)">Sin ofertas todavía — el worker irá llenando esto.</td></tr>';
+<td>${d.date||'—'}</td><td>${d.return_date||'—'}</td><td><span class="badge">${d.source}</span></td><td>${d.when}</td></tr>`).join('')
+: '<tr><td colspan="7" style="color:var(--dim)">Sin ofertas todavía — el worker irá llenando esto.</td></tr>';
 
 document.getElementById('routes').innerHTML = routes.length ? routes.map((r,i)=>{
   const diff=r.median?((r.best/r.median-1)*100):null;
